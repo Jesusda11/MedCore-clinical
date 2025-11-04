@@ -1,0 +1,32 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_POSTGRESQL")
+}
+
+model Appointment {
+  id        String   @id @default(cuid())
+  patientId String
+  doctorId  String
+  startTime DateTime
+  endTime   DateTime
+  status    String   @default("SCHEDULED") // SCHEDULED | COMPLETED | CANCELLED
+  createdAt DateTime @default(now())
+}
+
+model Queue {
+  id        String   @id @default(uuid())
+  patientId String
+  status    String   @default("WAITING") // WAITING | ATTENDED | CANCELLED
+  createdAt DateTime @default(now())
+}
