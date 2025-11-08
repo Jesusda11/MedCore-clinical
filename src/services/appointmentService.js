@@ -1,4 +1,4 @@
-const { PrismaClient} = require("../generated/prisma");
+const { PrismaClient, AppointmentStatus} = require("../generated/prisma");
 const prisma = new PrismaClient();
 
 const {
@@ -71,7 +71,86 @@ const AppointmentService = {
     if (data.status) updatePayload.status = data.status;
 
     return prisma.appointment.update({ where: { id }, data: updatePayload });
-  }
+  },
+
+  cancel: async (id) => {
+    const appointment = await prisma.appointment.findUnique({ where: { id } });
+    
+    if (!appointment) {
+      throw new Error("Cita no encontrada.");
+    }
+
+    if (appointment.status === AppointmentStatus.CANCELLED) {
+      throw new Error("La cita ya está cancelada.");
+    }
+
+    return prisma.appointment.update({
+      where: { id },
+      data: { status: AppointmentStatus.CANCELLED }
+    });
+  },
+
+ /**
+   * Retrieves appointments based on various filters including date, time range,
+   * doctor, patient, and status.
+   */
+  getAppointments: async (filters = {}) => {
+    const where = {};
+
+    if (filters.date) {
+      const date = new Date(filters.date);
+      if (isNaN(date)) throw new Error("Fecha inválida.");
+
+      const startOfDay = new Date(date.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(date.setHours(23, 59, 59, 999));
+
+      where.startTime = {
+        gte: startOfDay,
+        lte: endOfDay
+      };
+    }
+
+    if (filters.startDate && filters.endDate) {
+      const startDate = new Date(filters.startDate);
+      const endDate = new Date(filters.endDate);
+
+      if (isNaN(startDate) || isNaN(endDate)) {
+        throw new Error("Rango de fechas inválido.");
+      }
+
+      where.startTime = {
+        gte: new Date(startDate.setHours(0, 0, 0, 0)),
+        lte: new Date(endDate.setHours(23, 59, 59, 999))
+      };
+    }
+
+    if (filters.startTime) {
+      const startTime = new Date(filters.startTime);
+      if (isNaN(startTime)) throw new Error("Hora inválida.");
+
+      where.startTime = startTime;
+    }
+
+    if (filters.doctorId) {
+      where.doctorId = filters.doctorId;
+    }
+
+    if (filters.patientId) {
+      where.patientId = filters.patientId;
+    }
+
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    return prisma.appointment.findMany({
+      where,
+      orderBy: {
+        startTime: 'asc'
+      }
+    });
+  } 
+
 };
 
 module.exports = AppointmentService;

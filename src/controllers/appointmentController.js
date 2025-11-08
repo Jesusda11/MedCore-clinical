@@ -57,7 +57,53 @@ const updateAppointment = async (req, res) => {
   }
 };
 
+const cancelAppointment = async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const cancelled = await AppointmentService.cancel(id);
+
+    return res.json({
+      message: "Cita cancelada correctamente",
+      appointment: cancelled
+    });
+  } catch (error) {
+    console.error("Error cancelando cita:", error);
+    return res.status(400).json({ error: error.message });
+  }
+};
+
+/**
+ * Retrieves appointments with optional filters
+ */
+const getAppointments = async (req, res) => {
+  try {
+    const { date, startDate, endDate, startTime, doctorId, patientId, status } = req.query;
+
+    const appointments = await AppointmentService.getAppointments({
+      date,
+      startDate,
+      endDate,
+      startTime,
+      doctorId,
+      patientId,
+      status
+    });
+
+    return res.json({
+      message: "Citas obtenidas correctamente",
+      count: appointments.length,
+      appointments
+    });
+  } catch (error) {
+    console.error("Error obteniendo citas:", error);
+    return res.status(400).json({ error: error.message });
+  }
+};
+
 module.exports = {
   createAppointment,
-  updateAppointment
+  updateAppointment,
+  cancelAppointment,
+  getAppointments
 };
