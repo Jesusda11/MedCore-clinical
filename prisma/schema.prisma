@@ -14,19 +14,35 @@ datasource db {
   url      = env("DATABASE_URL_POSTGRESQL")
 }
 
+enum AppointmentStatus {
+  SCHEDULED
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum QueueStatus {
+  WAITING
+  CALLED
+  ATTENDED
+  CANCELLED
+}
+
 model Appointment {
-  id        String   @id @default(cuid())
+  id        String            @id @default(cuid())
   patientId String
   doctorId  String
   startTime DateTime
   endTime   DateTime
-  status    String   @default("SCHEDULED") // SCHEDULED | COMPLETED | CANCELLED
-  createdAt DateTime @default(now())
+  status    AppointmentStatus @default(SCHEDULED)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
 }
 
 model Queue {
-  id        String   @id @default(uuid())
+  id        String      @id @default(uuid())
   patientId String
-  status    String   @default("WAITING") // WAITING | ATTENDED | CANCELLED
-  createdAt DateTime @default(now())
+  doctorId  String
+  status    QueueStatus @default(WAITING)
+  createdAt DateTime    @default(now())
 }
