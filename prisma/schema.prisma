@@ -21,13 +21,6 @@ enum AppointmentStatus {
   CANCELLED
 }
 
-enum QueueStatus {
-  WAITING
-  CALLED
-  ATTENDED
-  CANCELLED
-}
-
 model Appointment {
   id        String            @id @default(cuid())
   patientId String
@@ -39,10 +32,23 @@ model Appointment {
   updatedAt DateTime          @updatedAt
 }
 
+enum QueueStatus {
+  WAITING
+  CALLED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
 model Queue {
-  id        String      @id @default(uuid())
-  patientId String
-  doctorId  String
-  status    QueueStatus @default(WAITING)
-  createdAt DateTime    @default(now())
+  id            String      @id @default(uuid())
+  appointmentId String?     @unique
+  patientId     String
+  doctorId      String
+  queueNumber   Int
+  status        QueueStatus @default(WAITING)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([doctorId, status, queueNumber])
 }
