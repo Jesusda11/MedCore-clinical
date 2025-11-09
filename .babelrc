@@ -1,0 +1,14 @@
+{
+  "presets": [
+    [
+      "@babel/preset-env",
+      {
+        "targets": {
+          "node": "20"
+        },
+        "bugfixes": true,
+        "shippedProposals": true
+      }
+    ]
+  ]
+}

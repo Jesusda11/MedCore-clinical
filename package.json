@@ -6,25 +6,34 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "build": "babel src -d dist --copy-files",
-    "test": "jest --runInBand --watchAll --detectOpenHandles"
+    "test": "jest --runInBand --watchAll --detectOpenHandles",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "docker:build": "docker compose build",
+    "docker:run": "docker compose up -d --remove-orphans"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@prisma/client": "^6.18.0",
+    "@prisma/client": "^6.19.0",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.2",
-    "prisma": "^6.18.0"
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
+    "@babel/cli": "^7.26.0",
+    "@babel/core": "^7.26.0",
+    "@babel/preset-env": "^7.26.0",
     "jest": "^30.2.0",
     "nodemon": "^3.1.10",
+    "prisma": "^6.19.0",
     "supertest": "^7.1.4"
   }
 }
