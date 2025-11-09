@@ -1,0 +1,26 @@
+services:
+  api:
+    image: ms-clinical:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - SECURITY_MS_URL=http://ms-security:3002/api/v1
+      - PATIENT_MS_URL=http://ms-patient-ehr:3003/api/v1
+    ports:
+      - "3004:3004"
+    expose:
+      - "3004"
+    networks:
+      medcore-network:
+        aliases:
+          - ms-clinical
+    restart: unless-stopped
+
+networks:
+  medcore-network:
+    external: true
