@@ -2,6 +2,9 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const router = require("./router/routes");
+const { initialize, disconnect } = require("./interceptors/auditInterceptor");
+
+const PORT = process.env.PORT || 4000;
 
 const app = express();
 app.use(
@@ -13,5 +16,18 @@ app.use(
 app.use(express.json());
 
 app.use("/api/v1", router);
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`Appointment Service running on port ${PORT}`));
+
+process.on("SIGINT", async () => {
+  await disconnect();
+  process.exit(0);
+});
+
+process.on("SIGTERM", async () => {
+  await disconnect();
+  process.exit(0);
+});
+
+app.listen(PORT, async () => {
+  console.log(`Appointment Service running on port ${PORT}`);
+  await initialize();
+});
