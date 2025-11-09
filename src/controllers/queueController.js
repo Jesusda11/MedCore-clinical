@@ -1,0 +1,134 @@
+const QueueService = require("../services/queueService");
+
+/**
+ * Handles patient check-in to join the queue
+ */
+const joinQueue = async (req, res) => {
+  try {
+    const { appointmentId } = req.body;
+
+    if (!appointmentId) {
+      return res.status(400).json({
+        error: "El ID de la cita es obligatorio."
+      });
+    }
+
+    const queueEntry = await QueueService.join(appointmentId);
+
+    return res.status(201).json({
+      message: "Check-in exitoso. Ha sido agregado a la cola.",
+      queue: {
+        id: queueEntry.id,
+        queueNumber: queueEntry.queueNumber,
+        status: queueEntry.status,
+        patientId: queueEntry.patientId,
+        doctorId: queueEntry.doctorId,
+        estimatedWaitTimeMinutes: queueEntry.estimatedWaitTimeMinutes
+      }
+    });
+
+  } catch (error) {
+    console.error("Error en check-in:", error);
+    return res.status(400).json({ error: error.message });
+  }
+};
+
+/**
+ * Gets the current active queue for a specific doctor
+ */
+const getCurrentQueueByDoctor = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+
+    if (!doctorId) {
+      return res.status(400).json({ error: "El ID del doctor es obligatorio." });
+    }
+
+    const queue = await QueueService.getCurrentQueueByDoctor(doctorId);
+
+    return res.status(200).json({
+      message: "Cola actual del doctor obtenida exitosamente.",
+      queue
+    });
+  } catch (error) {
+    console.error("Error obteniendo la cola actual:", error);
+    return res.status(400).json({ error: error.message });
+  }
+};
+
+/**
+ * Calls the next patient in the doctor's queue
+ */
+const callNextPatient = async (req, res) => {
+  try {
+    const { doctorId } = req.body;
+
+    if (!doctorId) {
+      return res.status(400).json({ error: "El ID del doctor es obligatorio." });
+    }
+
+    const nextPatient = await QueueService.callNext(doctorId);
+
+    return res.status(200).json({
+      message: "El siguiente paciente ha sido llamado.",
+      queue: nextPatient
+    });
+  } catch (error) {
+    console.error("Error al llamar al siguiente paciente:", error);
+    return res.status(400).json({ error: error.message });
+  }
+};
+
+/**
+ * Marks a queue ticket as completed
+ */
+const completeTicket = async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+
+    if (!ticketId) {
+      return res.status(400).json({ error: "El ID del ticket es obligatorio." });
+    }
+
+    const updatedTicket = await QueueService.completeTicket(ticketId);
+
+    return res.status(200).json({
+      message: "Ticket completado exitosamente.",
+      ticket: updatedTicket
+    });
+  } catch (error) {
+    console.error("Error completando el ticket:", error);
+    return res.status(400).json({ error: error.message });
+  }
+};
+
+/**
+ * Gets the current position and estimated wait time of a ticket
+ */
+const getTicketPosition = async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+
+    if (!ticketId) {
+      return res.status(400).json({ error: "El ID del ticket es obligatorio." });
+    }
+
+    const positionInfo = await QueueService.getTicketPosition(ticketId);
+
+    return res.status(200).json({
+      message: "Posición del ticket obtenida exitosamente.",
+      position: positionInfo
+    });
+  } catch (error) {
+    console.error("Error obteniendo la posición del ticket:", error);
+    return res.status(400).json({ error: error.message });
+  }
+};
+
+module.exports = {
+  joinQueue,
+  getCurrentQueueByDoctor,
+  callNextPatient,
+  completeTicket,
+  getTicketPosition
+};
