@@ -1,4 +1,5 @@
 const AppointmentService = require("../services/appointmentService");
+const { formatAppointmentDates } = require("../utils/dateHelper");
 
 const createAppointment = async (req, res) => {
   try {
@@ -17,7 +18,7 @@ const createAppointment = async (req, res) => {
 
     return res.status(201).json({
       message: "Cita creada correctamente",
-      appointment
+      appointment: formatAppointmentDates(appointment)
     });
 
   } catch (error) {
@@ -39,17 +40,13 @@ const updateAppointment = async (req, res) => {
 
     const updated = await AppointmentService.update(
       id,
-      {
-        startTime,
-        status,
-        doctorId
-      },
+      { startTime, status, doctorId },
       req.token
     );
 
     return res.json({
       message: "Cita actualizada correctamente",
-      appointment: updated
+      appointment: formatAppointmentDates(updated)
     });
   } catch (error) {
     console.error("Error actualizando cita:", error);
@@ -60,12 +57,11 @@ const updateAppointment = async (req, res) => {
 const cancelAppointment = async (req, res) => {
   try {
     const id = req.params.id;
-
     const cancelled = await AppointmentService.cancel(id);
 
     return res.json({
       message: "Cita cancelada correctamente",
-      appointment: cancelled
+      appointment: formatAppointmentDates(cancelled)
     });
   } catch (error) {
     console.error("Error cancelando cita:", error);
@@ -78,22 +74,25 @@ const cancelAppointment = async (req, res) => {
  */
 const getAppointments = async (req, res) => {
   try {
-    const { date, startDate, endDate, startTime, doctorId, patientId, status } = req.query;
+    const { date, startDate, endDate, startTime, endTime, doctorId, patientId, status } = req.query;
 
     const appointments = await AppointmentService.getAppointments({
       date,
       startDate,
       endDate,
       startTime,
+      endTime,
       doctorId,
       patientId,
       status
     });
 
+    const formatted = appointments.map(formatAppointmentDates);
+
     return res.json({
       message: "Citas obtenidas correctamente",
-      count: appointments.length,
-      appointments
+      count: formatted.length,
+      appointments: formatted
     });
   } catch (error) {
     console.error("Error obteniendo citas:", error);

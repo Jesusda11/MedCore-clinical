@@ -1,5 +1,6 @@
 const { PrismaClient, AppointmentStatus} = require("../generated/prisma");
 const prisma = new PrismaClient();
+const { DateTime } = require('luxon');
 
 const {
   getDoctorData,
@@ -94,63 +95,53 @@ const AppointmentService = {
    * Retrieves appointments based on various filters including date, time range,
    * doctor, patient, and status.
    */
-  getAppointments: async (filters = {}) => {
-    const where = {};
+ getAppointments: async (filters = {}) => {
+  const where = {};
+  const timezone = 'America/Bogota';
 
-    if (filters.date) {
-      const date = new Date(filters.date);
-      if (isNaN(date)) throw new Error("Fecha inválida.");
+  if (filters.date) {
+    const startOfDay = DateTime.fromISO(filters.date, { zone: timezone })
+      .startOf('day')
+      .toJSDate();
+    
+    const endOfDay = DateTime.fromISO(filters.date, { zone: timezone })
+      .endOf('day')
+      .toJSDate();
 
-      const startOfDay = new Date(date.setHours(0, 0, 0, 0));
-      const endOfDay = new Date(date.setHours(23, 59, 59, 999));
+    where.startTime = {
+      gte: startOfDay,
+      lte: endOfDay
+    };
+  }
+  else if (filters.startDate && filters.endDate) {
+    where.startTime = {
+      gte: DateTime.fromISO(filters.startDate, { zone: timezone })
+        .startOf('day')
+        .toJSDate(),
+      lte: DateTime.fromISO(filters.endDate, { zone: timezone })
+        .endOf('day')
+        .toJSDate()
+    };
+  }
+  else if (filters.startTime && filters.endTime) {
+    where.startTime = {
+      gte: DateTime.fromISO(filters.startTime, { zone: timezone }).toJSDate(),
+      lte: DateTime.fromISO(filters.endTime, { zone: timezone }).toJSDate()
+    };
+  }
+  else if (filters.startTime) {
+    where.startTime = DateTime.fromISO(filters.startTime, { zone: timezone }).toJSDate();
+  }
 
-      where.startTime = {
-        gte: startOfDay,
-        lte: endOfDay
-      };
-    }
+  if (filters.doctorId) where.doctorId = filters.doctorId;
+  if (filters.patientId) where.patientId = filters.patientId;
+  if (filters.status) where.status = filters.status;
 
-    if (filters.startDate && filters.endDate) {
-      const startDate = new Date(filters.startDate);
-      const endDate = new Date(filters.endDate);
-
-      if (isNaN(startDate) || isNaN(endDate)) {
-        throw new Error("Rango de fechas inválido.");
-      }
-
-      where.startTime = {
-        gte: new Date(startDate.setHours(0, 0, 0, 0)),
-        lte: new Date(endDate.setHours(23, 59, 59, 999))
-      };
-    }
-
-    if (filters.startTime) {
-      const startTime = new Date(filters.startTime);
-      if (isNaN(startTime)) throw new Error("Hora inválida.");
-
-      where.startTime = startTime;
-    }
-
-    if (filters.doctorId) {
-      where.doctorId = filters.doctorId;
-    }
-
-    if (filters.patientId) {
-      where.patientId = filters.patientId;
-    }
-
-    if (filters.status) {
-      where.status = filters.status;
-    }
-
-    return prisma.appointment.findMany({
-      where,
-      orderBy: {
-        startTime: 'asc'
-      }
-    });
-  } 
-
+  return prisma.appointment.findMany({
+    where,
+    orderBy: { startTime: 'asc' }
+  });
+}
 };
 
 module.exports = AppointmentService;
