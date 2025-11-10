@@ -1,6 +1,9 @@
 const { PrismaClient, AppointmentStatus} = require("../generated/prisma");
+const axios = require("axios");
 const prisma = new PrismaClient();
 const { DateTime } = require('luxon');
+
+const SECURITY_MS_URL = process.env.SECURITY_MS_URL;
 
 const {
   getDoctorData,
@@ -141,7 +144,57 @@ const AppointmentService = {
     where,
     orderBy: { startTime: 'asc' }
   });
-}
+},
+
+/**
+ * Fetches appointments for all doctors associated with a specific specialty.
+ * It queries the SECURITY microservice to retrieve doctor IDs, then
+ * returns all appointments in the clinical system that belong to those doctors.
+ */
+getAppointmentsBySpecialty: async (specialty, token) => {
+    if (!specialty) throw new Error("El parámetro 'specialty' es obligatorio");
+
+   const { data } = await axios.get(
+    `${SECURITY_MS_URL}/users/doctors/by-specialty?specialty=${encodeURIComponent(specialty)}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+  const doctors = data.doctors || [];
+
+  if (doctors.length === 0) {
+    return [];
+  }
+
+  const doctorIds = doctors.map((d) => d.id);
+
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      doctorId: { in: doctorIds },
+    },
+    orderBy: { startTime: "asc" },
+  });
+
+  return appointments;
+},
+
+/**
+ * Retrieves all appointments associated with a specific patient.
+ */
+getAppointmentsByPatientId: async (patientId) => {
+  if (!patientId) {
+    throw new Error("El ID del paciente es obligatorio.");
+  }
+
+  const appointments = await prisma.appointment.findMany({
+    where: { patientId },
+    orderBy: { startTime: 'asc' }
+  });
+
+  return appointments;
+},
+
 };
 
 module.exports = AppointmentService;
