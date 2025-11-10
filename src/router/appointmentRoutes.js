@@ -4,7 +4,10 @@ const {
     createAppointment, 
     updateAppointment,
     cancelAppointment,
-    getAppointments
+    getAppointments,
+    getAppointmentsBySpecialty,
+    getAppointmentsByPatientId,
+    updateDoctor
  } = require("../controllers/appointmentController");
 const authMiddleware = require("../middleware/authMiddleware");
 
@@ -12,7 +15,10 @@ router.use(authMiddleware);
 router.post("/create", createAppointment);
 router.put("/update/:id", updateAppointment);
 router.patch("/:id/cancel", cancelAppointment);
+router.get("/by-specialty", getAppointmentsBySpecialty);
 router.get("/filter", getAppointments);
+router.get("/by-patient/:patientId", getAppointmentsByPatientId);
+router.put("/:id/update-doctor", updateDoctor);
 
 module.exports = router;
 
