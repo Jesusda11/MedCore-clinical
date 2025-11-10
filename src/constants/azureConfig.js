@@ -1,0 +1,8 @@
+const AZURE_EVENT_HUB_CONFIG = {
+  CONNECTION_STRING: process.env.AZURE_EVENT_HUB_CONNECTION_STRING,
+  CLIENT_ID: process.env.AZURE_EVENT_HUB_CLIENT_ID,
+  BROKERS: (process.env.AZURE_EVENT_HUB_BROKERS || "").split(","),
+  TOPIC: process.env.AZURE_EVENT_HUB_TOPIC,
+};
+
+module.exports = { AZURE_EVENT_HUB_CONFIG };
