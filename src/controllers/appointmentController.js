@@ -179,6 +179,22 @@ const updateDoctor = async (req, res) => {
   }
 };
 
+const handleDoctorInactive = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const results = await AppointmentService.handleDoctorInactive(doctorId, req.token);
+
+    return res.json({
+      message: "Citas canceladas y reprogramadas según disponibilidad",
+      results,
+    });
+  } catch (error) {
+    console.error("Error manejando doctor inactivo:", error);
+    return res.status(400).json({ error: error.message });
+  }
+};
+
+
 module.exports = {
   createAppointment,
   updateAppointment,
@@ -186,5 +202,6 @@ module.exports = {
   getAppointments,
   getAppointmentsBySpecialty,
   getAppointmentsByPatientId,
-  updateDoctor
+  updateDoctor,
+  handleDoctorInactive
 };

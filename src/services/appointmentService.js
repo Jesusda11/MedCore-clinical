@@ -195,6 +195,84 @@ getAppointmentsByPatientId: async (patientId) => {
   return appointments;
 },
 
+handleDoctorInactive: async (doctorId, token) => {
+  if (!doctorId) throw new Error("El ID del doctor es obligatorio.");
+
+  const { data: doctorData } = await axios.get(`${SECURITY_MS_URL}/users/doctors/${doctorId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  const specialty = doctorData.especializacion;
+  if (!specialty) throw new Error("El doctor no tiene especialidad asignada.");
+
+  const { data: sameSpecialtyDoctors } = await axios.get(
+    `${SECURITY_MS_URL}/users/doctors/by-specialty?specialty=${encodeURIComponent(specialty)}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  const availableDoctors = (sameSpecialtyDoctors.doctors || []).filter(d => d.status === "ACTIVE" && d.id !== doctorId);
+
+  if (availableDoctors.length === 0) {
+    console.warn(`No hay doctores disponibles en la especialidad ${specialty}`);
+  }
+
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      doctorId,
+      status: { in: ["SCHEDULED", "ONGOING"] },
+    },
+  });
+
+  const results = [];
+
+  for (const appt of appointments) {
+    await prisma.appointment.update({
+      where: { id: appt.id },
+      data: { status: "CANCELLED" },
+    });
+
+    let reassigned = null;
+
+    for (const newDoctor of availableDoctors) {
+      try {
+        await validateScheduleConflict({
+          doctorId: newDoctor.id,
+          patientId: appt.patientId,
+          start: appt.startTime,
+          end: appt.endTime,
+        });
+
+        reassigned = await prisma.appointment.create({
+          data: {
+            patientId: appt.patientId,
+            doctorId: newDoctor.id,
+            startTime: appt.startTime,
+            endTime: appt.endTime,
+            status: "SCHEDULED",
+          },
+        });
+        
+        if (reassigned) {
+        console.log(`Cita ${appt.id} reasignada a doctor ${reassigned.doctorId}`);
+        } else {
+        console.log(`Cita ${appt.id} no pudo ser reasignada`);
+      }
+        break;
+      } catch {
+        continue;
+      }
+    }
+
+    results.push({
+      oldAppointmentId: appt.id,
+      reassigned: reassigned ? true : false,
+      newDoctorId: reassigned?.doctorId || null,
+    });
+  }
+
+  return results;
+},
+
 };
 
 module.exports = AppointmentService;

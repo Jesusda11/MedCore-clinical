@@ -3,6 +3,9 @@ const express = require("express");
 const cors = require("cors");
 const router = require("./router/routes");
 const { initialize, disconnect } = require("./interceptors/auditInterceptor");
+const { startConsumer } = require('./events/kafkaConsumer');
+
+startConsumer().catch(err => console.error('Error iniciando consumer:', err));
 
 const PORT = process.env.PORT || 4000;
 
