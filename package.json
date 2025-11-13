@@ -26,9 +26,10 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
+    "kafkajs": "^2.2.4",
     "luxon": "^3.7.2",
-    "prisma": "^6.18.0",
-    "kafkajs": "^2.2.4"
+    "node-cron": "^4.2.1",
+    "prisma": "^6.18.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.26.0",

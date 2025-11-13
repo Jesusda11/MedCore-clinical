@@ -16,7 +16,7 @@ const consumer = kafka.consumer({ groupId: 'appointments-consumer-group' });
 
 const startConsumer = async () => {
   await consumer.connect();
-  await consumer.subscribe({ topic: process.env.AZURE_EVENT_HUB_TOPIC, fromBeginning: false });
+  await consumer.subscribe({ topic: process.env.AZURE_EVENT_HUB_TOPIC_CLINICAL, fromBeginning: false });
 
   await consumer.run({
     eachMessage: async ({ topic, partition, message }) => {
