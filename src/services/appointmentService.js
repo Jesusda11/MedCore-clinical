@@ -219,7 +219,7 @@ handleDoctorInactive: async (doctorId, token) => {
   const appointments = await prisma.appointment.findMany({
     where: {
       doctorId,
-      status: { in: ["SCHEDULED", "ONGOING"] },
+      status: { in: ["SCHEDULED", "IN_PROGRESS"] },
     },
   });
 
@@ -271,6 +271,38 @@ handleDoctorInactive: async (doctorId, token) => {
   }
 
   return results;
+},
+
+confirm: async (appointmentId, token) => {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId }
+  });
+
+  if (!appointment) {
+    throw new Error("Cita no encontrada.");
+  }
+
+  if (appointment.status === AppointmentStatus.CANCELLED) {
+    throw new Error("No puedes confirmar una cita cancelada.");
+  }
+
+  if (
+    appointment.status === AppointmentStatus.COMPLETED ||
+    appointment.status === AppointmentStatus.IN_PROGRESS
+  ) {
+    throw new Error("No puedes confirmar esta cita.");
+  }
+
+  if (appointment.status === AppointmentStatus.CONFIRMED) {
+    return appointment; 
+  }
+
+  return prisma.appointment.update({
+    where: { id: appointmentId },
+    data: {
+      status: AppointmentStatus.CONFIRMED
+    }
+  });
 },
 
 };

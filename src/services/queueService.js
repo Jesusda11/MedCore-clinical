@@ -96,7 +96,7 @@ const QueueService = {
     // Actualizar el estado de la cita a ONGOING
     await prisma.appointment.update({
       where: { id: appointmentId },
-      data: { status: AppointmentStatus.ONGOING }
+      data: { status: AppointmentStatus.IN_PROGRESS }
     });
 
     //Calcular tiempo estimado de espera
