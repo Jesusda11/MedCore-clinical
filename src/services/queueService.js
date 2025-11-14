@@ -43,9 +43,9 @@ const QueueService = {
       );
     }
 
-    const twoHoursAfterAppointment = new Date(appointmentDate.getTime() + 2 * 60 * 60000);
+    const tenMinutesAfterAppointment = new Date(appointmentDate.getTime() + 10 * 60000);
 
-    if (now > twoHoursAfterAppointment) {
+    if (now > tenMinutesAfterAppointment) {
       throw new Error("La cita ya pasó. Debe agendar una nueva cita.");
     }
 
@@ -91,12 +91,6 @@ const QueueService = {
         queueNumber,
         status: QueueStatus.WAITING
       }
-    });
-
-    // Actualizar el estado de la cita a ONGOING
-    await prisma.appointment.update({
-      where: { id: appointmentId },
-      data: { status: AppointmentStatus.IN_PROGRESS }
     });
 
     //Calcular tiempo estimado de espera
@@ -187,6 +181,12 @@ const QueueService = {
       }
     });
 
+    if (nextPatient.appointmentId) {
+    await prisma.appointment.update({
+      where: { id: nextPatient.appointmentId },
+      data: { status: AppointmentStatus.IN_PROGRESS}
+    });
+  }
     return updatedQueueEntry;
   },
 

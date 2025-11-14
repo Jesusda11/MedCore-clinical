@@ -29,11 +29,11 @@ const autoCancelNoShowAppointments = async () => {
       if (!queueEntry) {
         await prisma.appointment.update({
           where: { id: appointment.id },
-          data: { status: AppointmentStatus.CANCELLED }
+          data: { status: AppointmentStatus.NO_SHOW }
         });
 
         console.log(
-          `⏰ Cita ${appointment.id} cancelada automáticamente (paciente no llegó a tiempo).`
+          `Cita ${appointment.id} cancelada automáticamente (paciente no llegó a tiempo).`
         );
       }
     }

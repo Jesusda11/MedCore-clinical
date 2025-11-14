@@ -216,6 +216,28 @@ const confirmAppointment = async (req, res) => {
   }
 };
 
+const markNoShow = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const token = req.headers.authorization?.replace("Bearer ", "");
+
+    if (!token) {
+      return res.status(401).json({ error: "Token requerido." });
+    }
+
+    const result = await AppointmentService.markNoShow(id);
+
+    return res.json({
+      message: "Cita marcada como NO_SHOW exitosamente",
+      appointment: result
+      });
+
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createAppointment,
   updateAppointment,
@@ -225,5 +247,6 @@ module.exports = {
   getAppointmentsByPatientId,
   updateDoctor,
   handleDoctorInactive, 
-  confirmAppointment
+  confirmAppointment,
+  markNoShow
 };
