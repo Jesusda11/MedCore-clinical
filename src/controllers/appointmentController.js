@@ -194,6 +194,49 @@ const handleDoctorInactive = async (req, res) => {
   }
 };
 
+const confirmAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const token = req.headers.authorization?.replace("Bearer ", "");
+
+    if (!token) {
+      return res.status(401).json({ error: "Token requerido." });
+    }
+
+    const result = await AppointmentService.confirm(id, token);
+
+    return res.json({
+      message: "Cita confirmada exitosamente",
+      appointment: result
+    });
+
+  } catch (error) {
+    console.error("Error confirmando cita:", error);
+    return res.status(400).json({ error: error.message });
+  }
+};
+
+const markNoShow = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const token = req.headers.authorization?.replace("Bearer ", "");
+
+    if (!token) {
+      return res.status(401).json({ error: "Token requerido." });
+    }
+
+    const result = await AppointmentService.markNoShow(id);
+
+    return res.json({
+      message: "Cita marcada como NO_SHOW exitosamente",
+      appointment: result
+      });
+
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
+};
 
 module.exports = {
   createAppointment,
@@ -203,5 +246,7 @@ module.exports = {
   getAppointmentsBySpecialty,
   getAppointmentsByPatientId,
   updateDoctor,
-  handleDoctorInactive
+  handleDoctorInactive, 
+  confirmAppointment,
+  markNoShow
 };

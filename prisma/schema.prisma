@@ -16,9 +16,11 @@ datasource db {
 
 enum AppointmentStatus {
   SCHEDULED
-  ONGOING
+  CONFIRMED
+  IN_PROGRESS
   COMPLETED
   CANCELLED
+  NO_SHOW
 }
 
 model Appointment {
