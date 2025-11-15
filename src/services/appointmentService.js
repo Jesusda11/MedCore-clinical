@@ -1,4 +1,7 @@
 const { PrismaClient, AppointmentStatus, QueueStatus} = require("../generated/prisma");
+const { 
+  sendAppointmentConfirmationEmail,
+  sendAppointmentCancellationEmail } = require("../config/emailConfig");
 const axios = require("axios");
 const prisma = new PrismaClient();
 const { DateTime } = require('luxon');
@@ -77,7 +80,7 @@ const AppointmentService = {
     return prisma.appointment.update({ where: { id }, data: updatePayload });
   },
 
-  cancel: async (id) => {
+  cancel: async (id, token) => {
     const appointment = await prisma.appointment.findUnique({ where: { id } });
     
     if (!appointment) {
@@ -88,10 +91,33 @@ const AppointmentService = {
       throw new Error("La cita ya está cancelada.");
     }
 
-    return prisma.appointment.update({
+    const { data: patientData } = await axios.get(
+      `${SECURITY_MS_URL}/users/patients/${appointment.patientId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const { data: doctorData } = await axios.get(
+      `${SECURITY_MS_URL}/users/doctors/${appointment.doctorId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const formattedDate = new Date(appointment.startTime).toLocaleString("es-CO", {
+      timeZone: "America/Bogota"
+    });
+
+    const updatedAppointment = await prisma.appointment.update({
       where: { id },
       data: { status: AppointmentStatus.CANCELLED }
     });
+
+     await sendAppointmentCancellationEmail(
+      patientData.email,
+      patientData.fullname,
+      doctorData.fullname,
+      formattedDate
+    );
+
+    return updatedAppointment;
   },
 
  /**
@@ -359,12 +385,35 @@ confirm: async (appointmentId, token) => {
     return appointment; 
   }
 
-  return prisma.appointment.update({
+  const { data: patientData } = await axios.get(
+    `${SECURITY_MS_URL}/users/patients/${appointment.patientId}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+
+  const { data: doctorData } = await axios.get(
+    `${SECURITY_MS_URL}/users/doctors/${appointment.doctorId}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  const formattedDate = new Date(appointment.startTime).toLocaleString("es-CO", {
+    timeZone: "America/Bogota"
+  });
+
+  const updatedAppointment = await prisma.appointment.update({
     where: { id: appointmentId },
     data: {
       status: AppointmentStatus.CONFIRMED
     }
   });
+
+   await sendAppointmentConfirmationEmail(
+      patientData.email,
+      patientData.fullname,
+      doctorData.fullname,
+      formattedDate
+    );
+
+  return updatedAppointment;
 },
 
 markNoShow: async (appointmentId) => {
