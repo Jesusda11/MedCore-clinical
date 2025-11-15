@@ -3,7 +3,6 @@ const { PrismaClient, AppointmentStatus } = require("../../generated/prisma");
 const prisma = new PrismaClient();
 
 const SECURITY_MS_URL = process.env.SECURITY_MS_URL;
-const PATIENT_MS_URL = process.env.PATIENT_MS_URL;
 
 /**
  * Checks if a string is a valid MongoDB ObjectId format.
@@ -45,15 +44,21 @@ const getDoctorData = async (doctorId, token) => {
 const getPatientData = async (patientId, token) => {
   validateObjectId(patientId, "ID del paciente");
 
+  const url = `${SECURITY_MS_URL}/users/patients/${patientId}`;
+
   try {
-    const { data } = await axios.get(
-      `${PATIENT_MS_URL}/patients/${patientId}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    if (data.status !== "ACTIVE") throw new Error("El paciente está inactivo.");
+    const { data } = await axios.get(url, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (data.status !== "ACTIVE") {
+      throw new Error("El paciente está inactivo.");
+    }
+
     return data;
-  } catch(error) {
-    throw new Error(error.message || "Error verificando el paciente en ms-patient-ehr.");
+  } catch (error) {
+    console.error("Error en getPatientData:", error.response?.data || error.message);
+    throw new Error("Error verificando el paciente en ms-security.");
   }
 };
 
