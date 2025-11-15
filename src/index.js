@@ -4,7 +4,8 @@ const cors = require("cors");
 const router = require("./router/routes");
 const { initialize, disconnect } = require("./interceptors/auditInterceptor");
 const { startConsumer } = require('./events/kafkaConsumer');
-//require("./jobs/autoCancelJob");
+require("./jobs/autoCancelJob");
+require("./jobs/autoQueueEntryJob");
 
 startConsumer().catch(err => console.error('Error iniciando consumer:', err));
 

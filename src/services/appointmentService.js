@@ -102,7 +102,6 @@ const AppointmentService = {
     const where = {};
     const timezone = "America/Bogota";
 
-    // === Filtros de fecha (igual que antes) ===
     if (filters.date) {
       const startOfDay = DateTime.fromISO(filters.date, { zone: timezone }).startOf("day").toJSDate();
       const endOfDay = DateTime.fromISO(filters.date, { zone: timezone }).endOf("day").toJSDate();
@@ -323,7 +322,7 @@ handleDoctorInactive: async (doctorId, token) => {
   return results;
 },
 
-confirm: async (appointmentId, token) => {
+confirm: async (appointmentId, token) => { 
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId }
   });
@@ -341,6 +340,19 @@ confirm: async (appointmentId, token) => {
     appointment.status === AppointmentStatus.IN_PROGRESS
   ) {
     throw new Error("No puedes confirmar esta cita.");
+  }
+
+  const now = new Date();
+  const apptTime = new Date(appointment.startTime);
+
+  const diffMinutes = (apptTime - now) / 60000;
+
+  if (diffMinutes < 10) {
+    throw new Error("Solo puedes confirmar una cita con al menos 10 minutos de anticipación.");
+  }
+
+  if (diffMinutes > 24 * 60) {
+    throw new Error("Solo puedes confirmar citas dentro de las próximas 24 horas.");
   }
 
   if (appointment.status === AppointmentStatus.CONFIRMED) {

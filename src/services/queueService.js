@@ -21,34 +21,6 @@ const QueueService = {
       throw new Error("La cita está cancelada.");
     }
 
-    const now = new Date();
-    const appointmentDate = new Date(appointment.startTime);
-
-    const isToday =
-      appointmentDate.getDate() === now.getDate() &&
-      appointmentDate.getMonth() === now.getMonth() &&
-      appointmentDate.getFullYear() === now.getFullYear();
-
-    if (!isToday) {
-      throw new Error("La cita no es para hoy.");
-    }
-
-    const thirtyMinutesBeforeAppointment = new Date(appointmentDate.getTime() - 30 * 60000);
-
-    if (now < thirtyMinutesBeforeAppointment) {
-      const minutesUntilCheckIn = Math.ceil((thirtyMinutesBeforeAppointment - now) / 60000);
-      throw new Error(
-        `Solo puede hacer check-in 30 minutos antes de su cita. ` +
-          `Puede hacer check-in en ${minutesUntilCheckIn} minuto(s).`
-      );
-    }
-
-    const tenMinutesAfterAppointment = new Date(appointmentDate.getTime() + 10 * 60000);
-
-    if (now > tenMinutesAfterAppointment) {
-      throw new Error("La cita ya pasó. Debe agendar una nueva cita.");
-    }
-
     const existingQueue = await prisma.queue.findFirst({
       where: { appointmentId }
     });

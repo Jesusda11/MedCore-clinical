@@ -3,7 +3,8 @@ const { PrismaClient, AppointmentStatus, QueueStatus } = require("../generated/p
 const prisma = new PrismaClient();
 
 /**
- * Job para cancelar citas cuyos pacientes no se presentaron 10 min después de la hora agendada.
+ * Job to mark appointments as NO_SHOW when patients do not
+ * confirm at least 10 minutes before the scheduled time.
  */
 const autoCancelNoShowAppointments = async () => {
   try {
@@ -13,7 +14,7 @@ const autoCancelNoShowAppointments = async () => {
       where: {
         status: AppointmentStatus.SCHEDULED,
         startTime: {
-          lt: new Date(now.getTime() - 10 * 60 * 1000)
+          lt: new Date(now.getTime() + 10 * 60 * 1000)
         }
       }
     });
@@ -32,9 +33,7 @@ const autoCancelNoShowAppointments = async () => {
           data: { status: AppointmentStatus.NO_SHOW }
         });
 
-        console.log(
-          `Cita ${appointment.id} cancelada automáticamente (paciente no llegó a tiempo).`
-        );
+      console.log(`No-Show: El paciente no se presentó para la cita ${appointment.id}.`);
       }
     }
   } catch (error) {
@@ -43,6 +42,6 @@ const autoCancelNoShowAppointments = async () => {
 };
 
 cron.schedule("*/1 * * * *", () => {
-  console.log("🔁 Ejecutando auto-cancelación de citas...");
+  console.log("Ejecutando auto-cancelación de citas...");
   autoCancelNoShowAppointments();
 });
