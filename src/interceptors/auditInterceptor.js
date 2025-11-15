@@ -16,12 +16,13 @@ const {
 } = require("../utils/auditMappers");
 
 /**
- * AuditInterceptor for ms-clinical microservice
- * Captures HTTP requests and sends audit events to Azure Event Hub
+ * AuditInterceptor class to handle audit logging for HTTP requests.
  */
 class AuditInterceptor {
   constructor() {
     this.initialized = false;
+    this.eventQueue = [];
+    this.isProcessing = false;
   }
 
   async initialize() {
@@ -37,20 +38,36 @@ class AuditInterceptor {
     if (this.shouldSkipRoute(req.path)) return next();
 
     const startTime = Date.now();
+    const requestId = this.generateRequestId();
+    req.auditRequestId = requestId;
+
+    const originalSend = res.send;
+    const originalJson = res.json;
+    let responseBody = null;
+
+    res.send = function (body) {
+      responseBody = body;
+      return originalSend.call(this, body);
+    };
+
+    res.json = function (body) {
+      responseBody = body;
+      return originalJson.call(this, body);
+    };
+
+    next();
 
     res.on("finish", async () => {
       try {
-        await this.captureHttpEvent(req, res, startTime);
-      } catch (error) {
-        console.error("Error capturing audit event:", error.message);
-      }
+        await this.captureHttpEvent(req, res, startTime, responseBody);
+      } catch (error) {}
     });
-
-    next();
   }
 
-  async captureHttpEvent(req, res, startTime) {
-    if (!this.initialized) return;
+  async captureHttpEvent(req, res, startTime, responseBody) {
+    if (!this.initialized) {
+      return;
+    }
 
     try {
       const duration = Date.now() - startTime;
@@ -61,31 +78,78 @@ class AuditInterceptor {
       const config = getEventConfig(eventType, method, path, success);
 
       const auditEvent = {
-        eventType,
-        userId: req.user?.id || "ANONYMOUS",
-        userRole: this.normalizeUserRole(req.user?.role),
-        targetUserId: null,
-        resourceType: determineResourceType(),
-        resourceId: extractResourceId(req),
+        accessReason:
+          req.headers["x-access-reason"] || req.body?.accessReason || null,
         action: config.action,
-        description: config.description,
-        ipAddress: this.extractIpAddress(req),
-        userAgent: req.get("User-Agent") || null,
-        sessionId: req.sessionId || null,
-        success,
-        errorMessage: success ? null : "Request failed",
-        severityLevel: config.severity,
-        accessReason: req.headers["x-access-reason"] || null,
         checksum: null,
         data: { durationMs: duration },
+        description: config.description,
+        errorMessage: success ? null : this.extractErrorMessage(responseBody),
+        eventType,
         hipaaCompliance: isHipaaSensitiveRoute(path),
+        ipAddress: this.extractIpAddress(req),
         metadata: buildAuditMetadata(req, res, duration),
+        resourceId: extractResourceId(req),
+        resourceType: determineResourceType(path),
+        sessionId: req.auditRequestId || null,
+        severityLevel: statusCode >= 500 ? "CRITICAL" : config.severity,
+        source: "ms-clinical",
+        statusCode,
+        success,
+        targetUserId: this.extractTargetPatientId(req),
+        userAgent: req.get("User-Agent") || null,
+        userId: req.user?.id || "ANONYMOUS",
+        userRole: this.normalizeUserRole(req.user?.role),
       };
 
-      await sendAuditEvent(auditEvent);
+      await this.sendEvent(auditEvent);
+    } catch (error) {}
+  }
+
+  async sendEvent(eventData) {
+    try {
+      await sendAuditEvent(eventData);
     } catch (error) {
-      console.error("Error sending audit event:", error.message);
+      this.eventQueue.push({
+        event: eventData,
+        timestamp: new Date(),
+        retries: 0,
+      });
+
+      this.processEventQueue();
     }
+  }
+
+  async processEventQueue() {
+    if (this.isProcessing || this.eventQueue.length === 0) return;
+
+    this.isProcessing = true;
+
+    while (this.eventQueue.length > 0) {
+      const queuedItem = this.eventQueue[0];
+
+      try {
+        await sendAuditEvent(queuedItem.event);
+        this.eventQueue.shift();
+      } catch (error) {
+        queuedItem.retries++;
+
+        if (queuedItem.retries >= 3) {
+          this.eventQueue.shift();
+        } else {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * queuedItem.retries),
+          );
+        }
+        break;
+      }
+    }
+
+    this.isProcessing = false;
+  }
+
+  generateRequestId() {
+    return `req_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
   }
 
   shouldSkipRoute(path) {
@@ -94,9 +158,16 @@ class AuditInterceptor {
   }
 
   normalizeUserRole(role) {
-    if (!role) return UserRole.UNKNOWN;
-    const upperRole = role.toUpperCase();
-    return UserRole[upperRole] || UserRole.UNKNOWN;
+    return role
+      ? UserRole[role.toUpperCase()] || UserRole.UNKNOWN
+      : UserRole.UNKNOWN;
+  }
+
+  extractTargetPatientId(req) {
+    if (req.params?.id) return req.params.id;
+    if (req.params?.patientId) return req.params.patientId;
+    if (req.body?.patientId) return req.body.patientId;
+    return null;
   }
 
   extractIpAddress(req) {
@@ -109,13 +180,34 @@ class AuditInterceptor {
     );
   }
 
+  extractErrorMessage(responseBody) {
+    if (!responseBody) return null;
+
+    try {
+      const parsed =
+        typeof responseBody === "string"
+          ? JSON.parse(responseBody)
+          : responseBody;
+      return parsed.message || parsed.error || null;
+    } catch {
+      return null;
+    }
+  }
+
   async disconnect() {
     try {
+      await this.processEventQueue();
       await disconnect();
       this.initialized = false;
-    } catch (error) {
-      console.error("Error disconnecting audit interceptor:", error.message);
-    }
+    } catch (error) {}
+  }
+
+  getQueueStatus() {
+    return {
+      queueLength: this.eventQueue.length,
+      isProcessing: this.isProcessing,
+      initialized: this.initialized,
+    };
   }
 }
 
@@ -125,4 +217,5 @@ module.exports = {
   initialize: auditInterceptor.initialize.bind(auditInterceptor),
   auditInterceptor: auditInterceptor.auditInterceptor.bind(auditInterceptor),
   disconnect: auditInterceptor.disconnect.bind(auditInterceptor),
+  getQueueStatus: auditInterceptor.getQueueStatus.bind(auditInterceptor),
 };
