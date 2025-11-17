@@ -57,12 +57,23 @@ const updateAppointment = async (req, res) => {
 const cancelAppointment = async (req, res) => {
   try {
     const id = req.params.id;
-    const cancelled = await AppointmentService.cancel(id);
+
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : null;
+
+    if (!token) {
+      return res.status(401).json({ error: "Token no proporcionado" });
+    }
+
+    const cancelled = await AppointmentService.cancel(id, token);
 
     return res.json({
       message: "Cita cancelada correctamente",
       appointment: formatAppointmentDates(cancelled)
     });
+
   } catch (error) {
     console.error("Error cancelando cita:", error);
     return res.status(400).json({ error: error.message });

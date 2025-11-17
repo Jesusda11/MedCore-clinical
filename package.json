@@ -29,6 +29,7 @@
     "kafkajs": "^2.2.4",
     "luxon": "^3.7.2",
     "node-cron": "^4.2.1",
+    "nodemailer": "^7.0.10",
     "prisma": "^6.18.0"
   },
   "devDependencies": {
