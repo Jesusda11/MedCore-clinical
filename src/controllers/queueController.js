@@ -125,10 +125,54 @@ const getTicketPosition = async (req, res) => {
   }
 };
 
+const getPatientStatus = async (req, res) => {
+    try {
+      const { patientId } = req.params;
+      const token = req.headers.authorization?.split(" ")[1] || req.headers.authorization;
+
+      if (!patientId) {
+        return res.status(400).json({
+          success: false,
+          message: "El ID del paciente es requerido."
+        });
+      }
+
+      if (!token) {
+        return res.status(401).json({
+          success: false,
+          message: "Token de autorización no proporcionado."
+        });
+      }
+
+      const queueStatus = await QueueService.getPatientQueueStatus(patientId, token);
+
+      return res.status(200).json({
+        success: true,
+        data: queueStatus
+      });
+
+    } catch (error) {
+      console.error("Error al obtener estado del paciente en la cola:", error);
+      
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        return res.status(401).json({
+          success: false,
+          message: "Token inválido o expirado."
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Error al obtener el estado del paciente en la cola."
+      });
+    }
+  }
+
 module.exports = {
   joinQueue,
   getCurrentQueueByDoctor,
   callNextPatient,
   completeTicket,
-  getTicketPosition
+  getTicketPosition,
+  getPatientStatus
 };

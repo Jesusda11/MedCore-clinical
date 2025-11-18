@@ -8,6 +8,8 @@ const prisma = new PrismaClient();
  * and automatically joins the queue if confirmed.
  */
 
+ //"*/1 * * * * " run every minute for testing
+
 cron.schedule("0 25,55 * * * *", async () => {
   console.log("[Job] Revisión de citas próximas...");
 

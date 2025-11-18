@@ -1,5 +1,8 @@
 const { PrismaClient, QueueStatus, AppointmentStatus } = require("../generated/prisma");
 const prisma = new PrismaClient();
+const axios = require("axios");
+
+const SECURITY_MS_URL = process.env.SECURITY_MS_URL;
 
 const QueueService = {
   /**
@@ -246,7 +249,108 @@ const QueueService = {
       position: patientsAhead + 1,
       estimatedWaitTimeMinutes
     };
+  },
+
+  /**
+ * Retrieves the current queue status for a patient.
+ * Returns queue information including doctor, position, and estimated wait time.
+ * Returns null if patient is not currently in any active queue.
+ */
+  getPatientQueueStatus: async (patientId, token) => {
+  if (!patientId) {
+    throw new Error("El ID del paciente es obligatorio.");
   }
+
+  if (!token) {
+    throw new Error("El token de autorización es obligatorio.");
+  }
+
+  const activeTicket = await prisma.queue.findFirst({
+    where: {
+      patientId,
+      status: {
+        in: [QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_PROGRESS]
+      }
+    },
+    orderBy: { createdAt: "desc" }
+  });
+
+  if (!activeTicket) {
+    return {
+      inQueue: false,
+      message: "El paciente no está actualmente en ninguna cola."
+    };
+  }
+
+  let doctorInfo = null;
+  try {
+    const { data: doctorData } = await axios.get(
+      `${SECURITY_MS_URL}/users/doctors/${activeTicket.doctorId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+        
+    doctorInfo = {
+      name: doctorData.fullname,
+      specialization: doctorData.especializacion,
+      department: doctorData.departamento,
+    };
+    
+  } catch (error) {
+    ;
+    
+    doctorInfo = {
+      id: activeTicket.doctorId,
+      name: "Información no disponible",
+      specialization: null,
+      error: error.message,
+      errorDetails: error.response?.data || null
+    };
+  }
+
+  const patientsAhead = await prisma.queue.count({
+    where: {
+      doctorId: activeTicket.doctorId,
+      status: QueueStatus.WAITING,
+      queueNumber: { lt: activeTicket.queueNumber }
+    }
+  });
+
+  const AVERAGE_APPOINTMENT_DURATION_MINUTES = 30;
+  const estimatedWaitTimeMinutes = patientsAhead * AVERAGE_APPOINTMENT_DURATION_MINUTES;
+
+  let appointmentInfo = null;
+  if (activeTicket.appointmentId) {
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: activeTicket.appointmentId },
+      select: {
+        id: true,
+        startTime: true,
+        status: true
+      }
+    });
+    
+    if (appointment) {
+      appointmentInfo = {
+        id: appointment.id,
+        scheduledAt: appointment.startTime,
+        status: appointment.status
+      };
+    }
+  }
+
+  return {
+    inQueue: true,
+    ticketId: activeTicket.id,
+    queueNumber: activeTicket.queueNumber,
+    status: activeTicket.status,
+    position: patientsAhead + 1,
+    estimatedWaitTimeMinutes,
+    doctor: doctorInfo,
+    appointment: appointmentInfo,
+    joinedAt: activeTicket.createdAt,
+    lastUpdated: activeTicket.updatedAt
+  };
+}
 
 };
 
