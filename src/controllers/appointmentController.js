@@ -6,21 +6,22 @@ const createAppointment = async (req, res) => {
     const { patientId, doctorId, startTime } = req.body;
 
     if (!patientId || !doctorId || !startTime) {
-      return res.status(400).json({ error: "Todos los campos son obligatorios." });
+      return res
+        .status(400)
+        .json({ error: "Todos los campos son obligatorios." });
     }
 
     const appointment = await AppointmentService.create({
       patientId,
       doctorId,
       startTime,
-      token: req.token
+      token: req.token,
     });
 
     return res.status(201).json({
       message: "Cita creada correctamente",
-      appointment: formatAppointmentDates(appointment)
+      appointment: formatAppointmentDates(appointment),
     });
-
   } catch (error) {
     console.error("Error creando cita:", error);
     return res.status(400).json({ error: error.message });
@@ -34,19 +35,19 @@ const updateAppointment = async (req, res) => {
 
     if (!startTime && !status && !doctorId) {
       return res.status(400).json({
-        error: "Se debe enviar al menos un campo para actualizar."
+        error: "Se debe enviar al menos un campo para actualizar.",
       });
     }
 
     const updated = await AppointmentService.update(
       id,
       { startTime, status, doctorId },
-      req.token
+      req.token,
     );
 
     return res.json({
       message: "Cita actualizada correctamente",
-      appointment: formatAppointmentDates(updated)
+      appointment: formatAppointmentDates(updated),
     });
   } catch (error) {
     console.error("Error actualizando cita:", error);
@@ -61,7 +62,7 @@ const cancelAppointment = async (req, res) => {
 
     return res.json({
       message: "Cita cancelada correctamente",
-      appointment: formatAppointmentDates(cancelled)
+      appointment: formatAppointmentDates(cancelled),
     });
   } catch (error) {
     console.error("Error cancelando cita:", error);
@@ -74,9 +75,7 @@ const cancelAppointment = async (req, res) => {
  */
 const getAppointments = async (req, res) => {
   try {
-    const { date, startDate, endDate, startTime, endTime, doctorId, patientId, status } = req.query;
-
-    const appointments = await AppointmentService.getAppointments({
+    const {
       date,
       startDate,
       endDate,
@@ -84,15 +83,29 @@ const getAppointments = async (req, res) => {
       endTime,
       doctorId,
       patientId,
-      status
-    });
+      status,
+    } = req.query;
+
+    const appointments = await AppointmentService.getAppointments(
+      {
+        date,
+        startDate,
+        endDate,
+        startTime,
+        endTime,
+        doctorId,
+        patientId,
+        status,
+      },
+      req.token,
+    );
 
     const formatted = appointments.map(formatAppointmentDates);
 
     return res.json({
       message: "Citas obtenidas correctamente",
       count: formatted.length,
-      appointments: formatted
+      appointments: formatted,
     });
   } catch (error) {
     console.error("Error obteniendo citas:", error);
@@ -108,12 +121,14 @@ const getAppointmentsBySpecialty = async (req, res) => {
     const { specialty } = req.query;
 
     if (!specialty) {
-      return res.status(400).json({ error: "El parámetro 'specialty' es obligatorio." });
+      return res
+        .status(400)
+        .json({ error: "El parámetro 'specialty' es obligatorio." });
     }
 
     const appointments = await AppointmentService.getAppointmentsBySpecialty(
       specialty,
-      req.token
+      req.token,
     );
 
     const formatted = appointments.map(formatAppointmentDates);
@@ -121,7 +136,7 @@ const getAppointmentsBySpecialty = async (req, res) => {
     return res.json({
       message: "Citas obtenidas correctamente por especialidad",
       count: formatted.length,
-      appointments: formatted
+      appointments: formatted,
     });
   } catch (error) {
     console.error("Error obteniendo citas por especialidad:", error);
@@ -137,16 +152,19 @@ const getAppointmentsByPatientId = async (req, res) => {
     const { patientId } = req.params;
 
     if (!patientId) {
-      return res.status(400).json({ error: "El ID del paciente es obligatorio." });
+      return res
+        .status(400)
+        .json({ error: "El ID del paciente es obligatorio." });
     }
 
-    const appointments = await AppointmentService.getAppointmentsByPatientId(patientId);
+    const appointments =
+      await AppointmentService.getAppointmentsByPatientId(patientId);
     const formatted = appointments.map(formatAppointmentDates);
 
     return res.json({
       message: "Citas del paciente obtenidas correctamente",
       count: formatted.length,
-      appointments: formatted
+      appointments: formatted,
     });
   } catch (error) {
     console.error("Error obteniendo citas del paciente:", error);
@@ -164,14 +182,20 @@ const updateDoctor = async (req, res) => {
     const { doctorId } = req.body;
 
     if (!doctorId) {
-      return res.status(400).json({ error: "El ID del doctor es obligatorio." });
+      return res
+        .status(400)
+        .json({ error: "El ID del doctor es obligatorio." });
     }
 
-    const updated = await AppointmentService.update(id, { doctorId }, req.token);
+    const updated = await AppointmentService.update(
+      id,
+      { doctorId },
+      req.token,
+    );
 
     return res.json({
       message: "Doctor asignado correctamente a la cita",
-      appointment: formatAppointmentDates(updated)
+      appointment: formatAppointmentDates(updated),
     });
   } catch (error) {
     console.error("Error actualizando doctor en la cita:", error);
@@ -182,7 +206,10 @@ const updateDoctor = async (req, res) => {
 const handleDoctorInactive = async (req, res) => {
   try {
     const { doctorId } = req.params;
-    const results = await AppointmentService.handleDoctorInactive(doctorId, req.token);
+    const results = await AppointmentService.handleDoctorInactive(
+      doctorId,
+      req.token,
+    );
 
     return res.json({
       message: "Citas canceladas y reprogramadas según disponibilidad",
@@ -207,9 +234,8 @@ const confirmAppointment = async (req, res) => {
 
     return res.json({
       message: "Cita confirmada exitosamente",
-      appointment: result
+      appointment: result,
     });
-
   } catch (error) {
     console.error("Error confirmando cita:", error);
     return res.status(400).json({ error: error.message });
@@ -230,9 +256,8 @@ const markNoShow = async (req, res) => {
 
     return res.json({
       message: "Cita marcada como NO_SHOW exitosamente",
-      appointment: result
-      });
-
+      appointment: result,
+    });
   } catch (error) {
     return res.status(400).json({ message: error.message });
   }
@@ -246,7 +271,7 @@ module.exports = {
   getAppointmentsBySpecialty,
   getAppointmentsByPatientId,
   updateDoctor,
-  handleDoctorInactive, 
+  handleDoctorInactive,
   confirmAppointment,
-  markNoShow
+  markNoShow,
 };

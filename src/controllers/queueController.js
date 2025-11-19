@@ -9,7 +9,7 @@ const joinQueue = async (req, res) => {
 
     if (!appointmentId) {
       return res.status(400).json({
-        error: "El ID de la cita es obligatorio."
+        error: "El ID de la cita es obligatorio.",
       });
     }
 
@@ -23,10 +23,9 @@ const joinQueue = async (req, res) => {
         status: queueEntry.status,
         patientId: queueEntry.patientId,
         doctorId: queueEntry.doctorId,
-        estimatedWaitTimeMinutes: queueEntry.estimatedWaitTimeMinutes
-      }
+        estimatedWaitTimeMinutes: queueEntry.estimatedWaitTimeMinutes,
+      },
     });
-
   } catch (error) {
     console.error("Error en check-in:", error);
     return res.status(400).json({ error: error.message });
@@ -41,14 +40,16 @@ const getCurrentQueueByDoctor = async (req, res) => {
     const { doctorId } = req.params;
 
     if (!doctorId) {
-      return res.status(400).json({ error: "El ID del doctor es obligatorio." });
+      return res
+        .status(400)
+        .json({ error: "El ID del doctor es obligatorio." });
     }
 
     const queue = await QueueService.getCurrentQueueByDoctor(doctorId);
 
     return res.status(200).json({
       message: "Cola actual del doctor obtenida exitosamente.",
-      queue
+      queue,
     });
   } catch (error) {
     console.error("Error obteniendo la cola actual:", error);
@@ -64,14 +65,16 @@ const callNextPatient = async (req, res) => {
     const { doctorId } = req.body;
 
     if (!doctorId) {
-      return res.status(400).json({ error: "El ID del doctor es obligatorio." });
+      return res
+        .status(400)
+        .json({ error: "El ID del doctor es obligatorio." });
     }
 
-    const nextPatient = await QueueService.callNext(doctorId);
+    const nextPatient = await QueueService.callNext(doctorId, req.token);
 
     return res.status(200).json({
       message: "El siguiente paciente ha sido llamado.",
-      queue: nextPatient
+      queue: nextPatient,
     });
   } catch (error) {
     console.error("Error al llamar al siguiente paciente:", error);
@@ -87,17 +90,40 @@ const completeTicket = async (req, res) => {
     const { ticketId } = req.params;
 
     if (!ticketId) {
-      return res.status(400).json({ error: "El ID del ticket es obligatorio." });
+      return res
+        .status(400)
+        .json({ error: "El ID del ticket es obligatorio." });
     }
 
     const updatedTicket = await QueueService.completeTicket(ticketId);
 
     return res.status(200).json({
       message: "Ticket completado exitosamente.",
-      ticket: updatedTicket
+      ticket: updatedTicket,
     });
   } catch (error) {
     console.error("Error completando el ticket:", error);
+    return res.status(400).json({ error: error.message });
+  }
+};
+
+const updatePausedStatus = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { paused } = req.body;
+
+    if (paused === undefined) {
+      return res.status(400).json({ error: "El campo paused es obligatorio" });
+    }
+
+    const updatedPaused = await QueueService.updatePausedStatus(
+      doctorId,
+      req.body,
+      req.token,
+    );
+
+    return res.status(200).json(updatedPaused);
+  } catch (error) {
     return res.status(400).json({ error: error.message });
   }
 };
@@ -110,14 +136,16 @@ const getTicketPosition = async (req, res) => {
     const { ticketId } = req.params;
 
     if (!ticketId) {
-      return res.status(400).json({ error: "El ID del ticket es obligatorio." });
+      return res
+        .status(400)
+        .json({ error: "El ID del ticket es obligatorio." });
     }
 
     const positionInfo = await QueueService.getTicketPosition(ticketId);
 
     return res.status(200).json({
       message: "Posición del ticket obtenida exitosamente.",
-      position: positionInfo
+      position: positionInfo,
     });
   } catch (error) {
     console.error("Error obteniendo la posición del ticket:", error);
@@ -129,6 +157,8 @@ module.exports = {
   joinQueue,
   getCurrentQueueByDoctor,
   callNextPatient,
+  updatePausedStatus,
   completeTicket,
-  getTicketPosition
+  getTicketPosition,
 };
+

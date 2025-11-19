@@ -1,5 +1,12 @@
-const { PrismaClient, QueueStatus, AppointmentStatus } = require("../generated/prisma");
+const {
+  PrismaClient,
+  QueueStatus,
+  AppointmentStatus,
+} = require("../generated/prisma");
 const prisma = new PrismaClient();
+const axios = require("axios");
+
+const SECURITY_MS_URL = process.env.SECURITY_MS_URL;
 
 const QueueService = {
   /**
@@ -10,7 +17,7 @@ const QueueService = {
    */
   join: async (appointmentId) => {
     const appointment = await prisma.appointment.findUnique({
-      where: { id: appointmentId }
+      where: { id: appointmentId },
     });
 
     if (!appointment) {
@@ -22,7 +29,7 @@ const QueueService = {
     }
 
     const existingQueue = await prisma.queue.findFirst({
-      where: { appointmentId }
+      where: { appointmentId },
     });
 
     if (existingQueue) {
@@ -34,9 +41,13 @@ const QueueService = {
         patientId: appointment.patientId,
         doctorId: appointment.doctorId,
         status: {
-          in: [QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_PROGRESS]
-        }
-      }
+          in: [
+            QueueStatus.WAITING,
+            QueueStatus.CALLED,
+            QueueStatus.IN_PROGRESS,
+          ],
+        },
+      },
     });
 
     if (activeQueue) {
@@ -47,10 +58,14 @@ const QueueService = {
       where: {
         doctorId: appointment.doctorId,
         status: {
-          in: [QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_PROGRESS]
-        }
+          in: [
+            QueueStatus.WAITING,
+            QueueStatus.CALLED,
+            QueueStatus.IN_PROGRESS,
+          ],
+        },
       },
-      orderBy: { queueNumber: "desc" }
+      orderBy: { queueNumber: "desc" },
     });
 
     const queueNumber = lastQueue ? lastQueue.queueNumber + 1 : 1;
@@ -61,8 +76,8 @@ const QueueService = {
         patientId: appointment.patientId,
         doctorId: appointment.doctorId,
         queueNumber,
-        status: QueueStatus.WAITING
-      }
+        status: QueueStatus.WAITING,
+      },
     });
 
     //Calcular tiempo estimado de espera
@@ -71,15 +86,16 @@ const QueueService = {
       where: {
         doctorId: appointment.doctorId,
         status: QueueStatus.WAITING,
-        queueNumber: { lt: queueNumber }
-      }
+        queueNumber: { lt: queueNumber },
+      },
     });
 
-    const estimatedWaitTimeMinutes = patientsAhead * AVERAGE_APPOINTMENT_DURATION_MINUTES;
+    const estimatedWaitTimeMinutes =
+      patientsAhead * AVERAGE_APPOINTMENT_DURATION_MINUTES;
 
     return {
       ...queueEntry,
-      estimatedWaitTimeMinutes
+      estimatedWaitTimeMinutes,
     };
   },
   /**
@@ -94,19 +110,21 @@ const QueueService = {
     const activeStatuses = [
       QueueStatus.WAITING,
       QueueStatus.CALLED,
-      QueueStatus.IN_PROGRESS
+      QueueStatus.IN_PROGRESS,
     ];
 
     const currentQueue = await prisma.queue.findMany({
       where: {
         doctorId,
-        status: { in: activeStatuses }
+        status: { in: activeStatuses },
       },
-      orderBy: { queueNumber: "asc" }
+      orderBy: { queueNumber: "asc" },
     });
 
     if (currentQueue.length === 0) {
-      throw new Error("No hay pacientes actualmente en la cola para este doctor.");
+      throw new Error(
+        "No hay pacientes actualmente en la cola para este doctor.",
+      );
     }
 
     return currentQueue;
@@ -116,29 +134,42 @@ const QueueService = {
    * Calls the next patient in the queue for a given doctor.
    * Finds the first WAITING entry (lowest queueNumber) and marks it as CALLED.
    */
-  callNext: async (doctorId) => {
+  callNext: async (doctorId, token) => {
     if (!doctorId) {
       throw new Error("El ID del doctor es obligatorio.");
+    }
+
+    const { data } = await axios.get(
+      `${SECURITY_MS_URL}/users/doctors/${doctorId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+
+    if (data.paused) {
+      throw new Error("El médico está en pausa. No puede llamar pacientes");
     }
 
     const activePatient = await prisma.queue.findFirst({
       where: {
         doctorId,
-        status: { in: [QueueStatus.CALLED, QueueStatus.IN_PROGRESS] }
+        status: { in: [QueueStatus.CALLED, QueueStatus.IN_PROGRESS] },
       },
-      orderBy: { updatedAt: "desc" }
+      orderBy: { updatedAt: "desc" },
     });
 
     if (activePatient) {
-      throw new Error("Ya hay un paciente siendo atendido o llamado. Complete su atención antes de llamar al siguiente.");
+      throw new Error(
+        "Ya hay un paciente siendo atendido o llamado. Complete su atención antes de llamar al siguiente.",
+      );
     }
 
     const nextPatient = await prisma.queue.findFirst({
       where: {
         doctorId,
-        status: QueueStatus.WAITING
+        status: QueueStatus.WAITING,
       },
-      orderBy: { queueNumber: "asc" }
+      orderBy: { queueNumber: "asc" },
     });
 
     if (!nextPatient) {
@@ -149,16 +180,16 @@ const QueueService = {
       where: { id: nextPatient.id },
       data: {
         status: QueueStatus.CALLED,
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
 
     if (nextPatient.appointmentId) {
-    await prisma.appointment.update({
-      where: { id: nextPatient.appointmentId },
-      data: { status: AppointmentStatus.IN_PROGRESS}
-    });
-  }
+      await prisma.appointment.update({
+        where: { id: nextPatient.appointmentId },
+        data: { status: AppointmentStatus.IN_PROGRESS },
+      });
+    }
     return updatedQueueEntry;
   },
 
@@ -172,35 +203,56 @@ const QueueService = {
     }
 
     const ticket = await prisma.queue.findUnique({
-      where: { id: ticketId }
+      where: { id: ticketId },
     });
 
     if (!ticket) {
       throw new Error("Ticket no encontrado.");
     }
 
-    if (![QueueStatus.IN_PROGRESS, QueueStatus.CALLED].includes(ticket.status)) {
-      throw new Error("Solo se pueden completar tickets en estado 'CALLED' o 'IN_PROGRESS'.");
+    if (
+      ![QueueStatus.IN_PROGRESS, QueueStatus.CALLED].includes(ticket.status)
+    ) {
+      throw new Error(
+        "Solo se pueden completar tickets en estado 'CALLED' o 'IN_PROGRESS'.",
+      );
     }
 
     const updatedTicket = await prisma.queue.update({
       where: { id: ticketId },
       data: {
         status: QueueStatus.COMPLETED,
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
 
     if (ticket.appointmentId) {
       await prisma.appointment.update({
         where: { id: ticket.appointmentId },
-        data: { status: AppointmentStatus.COMPLETED }
+        data: { status: AppointmentStatus.COMPLETED },
       });
     }
 
     return updatedTicket;
   },
 
+  updatePausedStatus: async (doctorId, body, token) => {
+    try {
+      const { data } = await axios.put(
+        `${SECURITY_MS_URL}/users/doctors/${doctorId}/paused`,
+        body,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      return data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.message || "Error updating paused status",
+      );
+    }
+  },
   /**
    * Retrieves the current position and estimated waiting time of a ticket in the queue.
    */
@@ -210,20 +262,22 @@ const QueueService = {
     }
 
     const ticket = await prisma.queue.findUnique({
-      where: { id: ticketId }
+      where: { id: ticketId },
     });
 
     if (!ticket) {
       throw new Error("Ticket no encontrado.");
     }
 
-    if ([QueueStatus.COMPLETED, QueueStatus.CANCELLED].includes(ticket.status)) {
+    if (
+      [QueueStatus.COMPLETED, QueueStatus.CANCELLED].includes(ticket.status)
+    ) {
       return {
         ticketId: ticket.id,
         status: ticket.status,
         position: null,
         estimatedWaitTimeMinutes: 0,
-        message: "El ticket ya fue completado o cancelado."
+        message: "El ticket ya fue completado o cancelado.",
       };
     }
 
@@ -231,12 +285,13 @@ const QueueService = {
       where: {
         doctorId: ticket.doctorId,
         status: QueueStatus.WAITING,
-        queueNumber: { lt: ticket.queueNumber }
-      }
+        queueNumber: { lt: ticket.queueNumber },
+      },
     });
 
     const AVERAGE_APPOINTMENT_DURATION_MINUTES = 30;
-    const estimatedWaitTimeMinutes = patientsAhead * AVERAGE_APPOINTMENT_DURATION_MINUTES;
+    const estimatedWaitTimeMinutes =
+      patientsAhead * AVERAGE_APPOINTMENT_DURATION_MINUTES;
 
     return {
       ticketId: ticket.id,
@@ -244,10 +299,9 @@ const QueueService = {
       status: ticket.status,
       queueNumber: ticket.queueNumber,
       position: patientsAhead + 1,
-      estimatedWaitTimeMinutes
+      estimatedWaitTimeMinutes,
     };
-  }
-
+  },
 };
 
 module.exports = QueueService;
