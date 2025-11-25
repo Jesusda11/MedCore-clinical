@@ -249,6 +249,38 @@ const markNoShow = async (req, res) => {
   }
 };
 
+const getConfirmedAppointmentsByDoctor = async (req, res) => {
+  try {
+    const doctorId = req.params.doctorId;
+
+    const appointments = await AppointmentService.getConfirmedAppointmentsByDoctor(doctorId);
+
+    if (!appointments || appointments.length === 0) {
+      return res.status(200).json({
+        doctorId,
+        count: 0,
+        message: "No hay pacientes con cita confirmada para este doctor.",
+        appointments: []
+      });
+    }
+
+    return res.status(200).json({
+      doctorId,
+      count: appointments.length,
+      message: "Citas confirmadas obtenidas correctamente.",
+      appointments
+    });
+
+  } catch (error) {
+    console.error("ERROR getConfirmedAppointmentsByDoctor:", error);
+    return res.status(400).json({
+      error: error.message || "Error al obtener citas confirmadas."
+    });
+  }
+};
+
+
+
 module.exports = {
   createAppointment,
   updateAppointment,
@@ -259,5 +291,6 @@ module.exports = {
   updateDoctor,
   handleDoctorInactive, 
   confirmAppointment,
-  markNoShow
+  markNoShow,
+  getConfirmedAppointmentsByDoctor
 };
