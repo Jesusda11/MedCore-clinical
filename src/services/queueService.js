@@ -350,7 +350,110 @@ const QueueService = {
     joinedAt: activeTicket.createdAt,
     lastUpdated: activeTicket.updatedAt
   };
+},
+
+getCurrentPatientByDoctor: async (doctorId) => {
+  if (!doctorId) throw new Error("El ID del doctor es obligatorio.");
+
+  const current = await prisma.queue.findFirst({
+    where: {
+      doctorId,
+      status: "IN_PROGRESS"
+    },
+    orderBy: {
+      updatedAt: "desc" 
+    }
+  });
+
+  return current;
+},
+
+startAppointment: async (doctorId, appointmentId) => {
+  if (!doctorId || !appointmentId) {
+    throw new Error("doctorId y appointmentId son obligatorios.");
+  }
+
+  const existingInProgress = await prisma.queue.findFirst({
+    where: {
+      doctorId,
+      status: "IN_PROGRESS"
+    }
+  });
+
+  if (existingInProgress) {
+    throw new Error("El doctor ya tiene un paciente en atención.");
+  }
+
+  const ticket = await prisma.queue.findFirst({
+    where: {
+      doctorId,
+      appointmentId
+    }
+  });
+
+  if (!ticket) {
+    throw new Error("No existe un ticket en cola asociado a esta cita.");
+  }
+
+  if (ticket.status !== "CALLED") {
+    throw new Error("Solo puedes iniciar la atención de un paciente que ya fue llamado (estado CALLED).");
+  }
+
+  const updatedTicket = await prisma.queue.update({
+    where: { id: ticket.id },
+    data: {
+      status: "IN_PROGRESS",
+      updatedAt: new Date()
+    }
+  });
+
+  const updatedAppointment = await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { status: "IN_PROGRESS" }
+  });
+
+  return {
+    ticket: updatedTicket,
+    appointment: updatedAppointment
+  };
+},
+
+getDoctorHistory: async (doctorId) => {
+  if (!doctorId) {
+    throw new Error("El ID del doctor es obligatorio.");
+  }
+
+  const tickets = await prisma.queue.findMany({
+    where: {
+      doctorId,
+      status: {
+        in: [
+          QueueStatus.CALLED,
+          QueueStatus.IN_PROGRESS,
+          QueueStatus.CANCELLED,
+          QueueStatus.COMPLETED
+        ]
+      }
+    },
+    orderBy: {
+      createdAt: "desc"
+    }
+  });
+
+  if (tickets.length === 0) {
+    return {
+      message: "El doctor no tiene historial de pacientes.",
+      history: []
+    };
+  }
+
+  return {
+    message: "Historial obtenido correctamente.",
+    total: tickets.length,
+    history: tickets
+  };
 }
+
 
 };
 

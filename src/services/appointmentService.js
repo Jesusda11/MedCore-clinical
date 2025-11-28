@@ -459,7 +459,38 @@ markNoShow: async (appointmentId) => {
   });
 
   return updatedAppointment;
-}
+},
+
+getConfirmedAppointmentsByDoctor: async (doctorId) => {
+  if (!doctorId) {
+    throw new Error("El ID del doctor es obligatorio.");
+  }
+
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      doctorId,
+      status: AppointmentStatus.CONFIRMED
+    },
+    orderBy: { startTime: "asc" }
+  });
+
+  if (appointments.length === 0) return [];
+
+  const enriched = [];
+  for (const appt of appointments) {
+    const ticket = await prisma.queue.findFirst({
+      where: { appointmentId: appt.id }
+    });
+
+    enriched.push({
+      ...appt,
+      queue: ticket || null
+    });
+  }
+
+  return enriched;
+},
+
 
 };
 

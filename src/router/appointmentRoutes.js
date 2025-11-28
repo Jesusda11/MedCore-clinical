@@ -9,7 +9,8 @@ const {
     getAppointmentsByPatientId,
     updateDoctor,
     confirmAppointment,
-    markNoShow
+    markNoShow,
+    getConfirmedAppointmentsByDoctor
  } = require("../controllers/appointmentController");
 const authMiddleware = require("../middleware/authMiddleware");
 
@@ -23,6 +24,8 @@ router.get("/by-patient/:patientId", getAppointmentsByPatientId);
 router.put("/:id/update-doctor", updateDoctor);
 router.post("/:id/confirm", confirmAppointment);
 router.post("/:id/no-show", markNoShow);
+router.get("/doctor/:doctorId/confirmed", getConfirmedAppointmentsByDoctor);
+
 
 module.exports = router;
 

@@ -166,7 +166,79 @@ const getPatientStatus = async (req, res) => {
         message: error.message || "Error al obtener el estado del paciente en la cola."
       });
     }
+}
+
+const getCurrentPatient = async (req, res) => {
+  try {
+    const doctorId = req.params.doctorId;
+
+    const ticket = await QueueService.getCurrentPatientByDoctor(doctorId);
+
+    if (!ticket) {
+      return res.status(200).json({
+        doctorId,
+        message: "El doctor no está atendiendo a ningún paciente en este momento.",
+        currentPatient: null
+      });
+    }
+
+    return res.status(200).json({
+      doctorId,
+      message: "Paciente actualmente en atención obtenido correctamente.",
+      currentPatient: ticket
+    });
+
+  } catch (error) {
+    console.error("ERROR getCurrentPatient:", error);
+    return res.status(400).json({
+      error: error.message || "Error al obtener el paciente actual."
+    });
   }
+};
+
+const startAppointment = async (req, res) => {
+  try {
+    const doctorId = req.params.doctorId;
+    const appointmentId = req.params.appointmentId;
+
+    const result = await QueueService.startAppointment(doctorId, appointmentId);
+
+    return res.status(200).json({
+      message: "La atención del paciente ha iniciado correctamente.",
+      doctorId,
+      appointmentId,
+      status: "IN_PROGRESS",
+      data: result
+    });
+
+  } catch (error) {
+    console.error("ERROR startAppointment:", error);
+    return res.status(400).json({
+      error: error.message
+    });
+  }
+};
+
+const getDoctorHistory = async (req, res) => {
+  try {
+    const doctorId = req.params.doctorId;
+
+    const history = await QueueService.getDoctorHistory(doctorId);
+
+    return res.status(200).json({
+      message: "Historial obtenido correctamente.",
+      doctorId,
+      total: history.length,
+      data: history
+    });
+
+  } catch (error) {
+    console.error("ERROR:", error);
+    return res.status(400).json({
+      error: error.message
+    });
+  }
+};
 
 module.exports = {
   joinQueue,
@@ -174,5 +246,8 @@ module.exports = {
   callNextPatient,
   completeTicket,
   getTicketPosition,
-  getPatientStatus
+  getPatientStatus,
+  getCurrentPatient,
+  startAppointment,
+  getDoctorHistory
 };
