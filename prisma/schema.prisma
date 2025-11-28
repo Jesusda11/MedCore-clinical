@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -24,15 +18,15 @@ enum AppointmentStatus {
 }
 
 model Appointment {
-  id        String            @id @default(cuid())
-  patientId String
-  doctorId  String
-  startTime DateTime
-  endTime   DateTime
-  status    AppointmentStatus @default(SCHEDULED)
+  id              String            @id @default(cuid())
+  patientId       String
+  doctorId        String
+  startTime       DateTime
+  endTime         DateTime
+  status          AppointmentStatus @default(SCHEDULED)
   reminder24hSent Boolean           @default(false)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 }
 
 enum QueueStatus {
@@ -54,4 +48,30 @@ model Queue {
   updatedAt     DateTime    @updatedAt
 
   @@index([doctorId, status, queueNumber])
+}
+
+enum OrderType {
+  LABORATORY
+  RADIOLOGY
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+model MedicalOrder {
+  id        String      @id @default(uuid())
+  patientId String
+  doctorId  String
+  type      OrderType
+  examType  String
+  status    OrderStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([patientId])
+  @@index([doctorId])
 }
