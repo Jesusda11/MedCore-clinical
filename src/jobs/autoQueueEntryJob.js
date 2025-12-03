@@ -10,11 +10,11 @@ const prisma = new PrismaClient();
 
  //"*/1 * * * * " run every minute for testing
 
-cron.schedule("0 25,55 * * * *", async () => {
+  cron.schedule("0 0,30 * * * *", async () => {
   console.log("[Job] Revisión de citas próximas...");
 
   const now = new Date();
-  const fiveMinutesLater = new Date(now.getTime() + 5 * 60000);
+  const threeHoursLater = new Date(now.getTime() + 3 * 60 * 60000);
 
   try {
     const appointments = await prisma.appointment.findMany({
@@ -22,9 +22,10 @@ cron.schedule("0 25,55 * * * *", async () => {
         status: AppointmentStatus.CONFIRMED,
         startTime: {
           gte: now,
-          lte: fiveMinutesLater
+          lte: threeHoursLater
         }
-      }
+      },
+      orderBy: { startTime: "asc" }
     });
 
     if (appointments.length === 0) {
