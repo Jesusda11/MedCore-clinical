@@ -358,7 +358,7 @@ getCurrentPatientByDoctor: async (doctorId) => {
   const current = await prisma.queue.findFirst({
     where: {
       doctorId,
-      status: "IN_PROGRESS"
+      status: "CALLED"
     },
     orderBy: {
       updatedAt: "desc" 

@@ -1,5 +1,6 @@
 const AppointmentService = require("../services/appointmentService");
 const { formatAppointmentDates } = require("../utils/dateHelper");
+const { sendFinalizationEmail } = require("../config/emailConfig");
 
 const createAppointment = async (req, res) => {
   try {
@@ -279,6 +280,26 @@ const getConfirmedAppointmentsByDoctor = async (req, res) => {
   }
 };
 
+const sendFinalizationController = async (req, res) => {
+  try {
+    const { email, fullname, doctorName, date } = req.body;
+
+    if (!email || !fullname || !doctorName || !date) {
+      return res.status(400).json({ error: "Faltan datos para enviar el correo." });
+    }
+
+    const result = await sendFinalizationEmail({ email, fullname, doctorName, date });
+
+    if (!result.success) {
+      return res.status(500).json({ error: "Error enviando el correo." });
+    }
+
+    return res.json({ message: "Correo de finalización enviado correctamente." });
+  } catch (error) {
+    console.error("Error en controller:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
 
 
 module.exports = {
@@ -292,5 +313,6 @@ module.exports = {
   handleDoctorInactive, 
   confirmAppointment,
   markNoShow,
-  getConfirmedAppointmentsByDoctor
+  getConfirmedAppointmentsByDoctor,
+  sendFinalizationController
 };

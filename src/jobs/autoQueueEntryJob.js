@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 
  //"*/1 * * * * " run every minute for testing
 
-  cron.schedule("0 0,30 * * * *", async () => {
+  cron.schedule("*/1 * * * *", async () => {
   console.log("[Job] Revisión de citas próximas...");
 
   const now = new Date();

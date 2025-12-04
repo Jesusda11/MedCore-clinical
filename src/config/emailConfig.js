@@ -120,8 +120,49 @@ const sendAppointmentCancellationEmail = async (email, fullname, doctorName, dat
   }
 };
 
+const sendFinalizationEmail = async ({ email, fullname, doctorName, date }) => {
+  const mailOptions = {
+    from: process.env.SMTP_USER,
+    to: email,
+    subject: "Finalización de Cita Médica",
+    html: `
+      <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+        <div style="background: #6a1b9a; padding: 20px; text-align: center;">
+          <h1 style="color: white; margin: 0;">Cita Finalizada</h1>
+        </div>
+
+        <div style="padding: 30px; background-color: #f9f9f9;">
+          <h2 style="color: #333;">Hola ${fullname},</h2>
+
+          <p style="color: #555; line-height: 1.6;">
+            Tu cita médica con el doctor <strong>${doctorName}</strong> realizada el día:
+          </p>
+
+          <p style="color: #333; font-size: 16px; font-weight: bold;">
+            ${date}
+          </p>
+
+          <p style="color: #555; margin-top: 15px;">
+            Ha finalizado exitosamente. Gracias por confiar en nuestros servicios.
+          </p>
+        </div>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log("Correo de finalización enviado a:", email);
+    return { success: true };
+  } catch (error) {
+    console.error("Error enviando correo de finalización:", error);
+    return { success: false, error: error.message };
+  }
+};
+  
 module.exports = {
   sendAppointmentConfirmationEmail,
   sendAppointmentReminderEmail,
-  sendAppointmentCancellationEmail
+  sendAppointmentCancellationEmail, 
+  sendFinalizationEmail
 };

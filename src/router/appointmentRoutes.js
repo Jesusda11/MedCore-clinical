@@ -10,7 +10,8 @@ const {
     updateDoctor,
     confirmAppointment,
     markNoShow,
-    getConfirmedAppointmentsByDoctor
+    getConfirmedAppointmentsByDoctor, 
+    sendFinalizationController
  } = require("../controllers/appointmentController");
 const authMiddleware = require("../middleware/authMiddleware");
 
@@ -25,6 +26,8 @@ router.put("/:id/update-doctor", updateDoctor);
 router.post("/:id/confirm", confirmAppointment);
 router.post("/:id/no-show", markNoShow);
 router.get("/doctor/:doctorId/confirmed", getConfirmedAppointmentsByDoctor);
+
+router.post("/send-finalization", sendFinalizationController);
 
 
 module.exports = router;
